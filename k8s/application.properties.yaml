@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: application-config-order
+data:
+  application.properties: |
+    server.tomcat.max-keep-alive-requests=0
+    server.port=8080
+    spring.application.name=order
+    management.endpoints.web.exposure.include=*
+    logging.level.org.springframework.boot.actuate.trace.WebRequestTraceFilter: TRACE
+    logging.level.com.ewolff.microservice.order.logic.OrderController: TRACE
+    logging.level.com.ewolff.microservice.order.RandomlyFailingFilter: TRACE
+    spring.jpa.hibernate.ddl-auto=update
+    spring.datasource.url=jdbc:postgresql://postgres/dborder
+    spring.datasource.username=dbuser
+    spring.datasource.password=dbpass
+    spring.datasource.driver-class-name=org.postgresql.Driver
+    spring.sleuth.baggage.remote-fields=x-request-id,x-ot-span-context
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: application-config-shipping
+data:
+  application.properties: |
+    server.tomcat.max-keep-alive-requests=0
+    server.port=8080
+    spring.application.name=shipping
+    management.endpoints.web.exposure.include=*
+    logging.level.org.springframework.boot.actuate.trace.WebRequestTraceFilter: TRACE
+    logging.level.com.ewolff.microservice.shipping.poller: TRACE
+    logging.level.org.springframework.http.converter.json: ERROR
+    order.url=http://order:80/feed
+    spring.jpa.hibernate.ddl-auto=update
+    spring.datasource.url=jdbc:postgresql://postgres/dbshipping
+    spring.datasource.username=dbuser
+    spring.datasource.password=dbpass
+    spring.datasource.driver-class-name=org.postgresql.Driver
+    spring.sleuth.baggage.remote-fields=x-request-id,x-ot-span-context
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: application-config-invoicing
+data:
+  application.properties: |
+    server.port=8080
+    server.tomcat.max-keep-alive-requests=0
+    management.endpoints.web.exposure.include=*
+    logging.level.org.springframework.boot.actuate.trace.WebRequestTraceFilter: TRACE
+    spring.application.name=invoicing
+    logging.level.com.ewolff.microservice.invoicing.poller: TRACE
+    logging.level.org.springframework.http.converter.json: ERROR
+    order.url=http://order:80/feed
+    spring.jpa.hibernate.ddl-auto=update
+    spring.datasource.url=jdbc:postgresql://postgres/dbinvoicing
+    spring.datasource.username=dbuser
+    spring.datasource.password=dbpass
+    spring.datasource.driver-class-name=org.postgresql.Driver
+    spring.sleuth.baggage.remote-fields=x-request-id,x-ot-span-context

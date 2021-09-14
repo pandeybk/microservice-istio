@@ -1,0 +1,275 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: invoicing
+    version: "1.0"
+  name: invoicing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: invoicing
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "true"
+      creationTimestamp: null
+      labels:
+        app: invoicing
+    spec:
+      containers:
+      - name: invoicing
+        image: quay.io/bpandey/istio-demo:microservice-istio-invoicing
+        imagePullPolicy: Always
+#        livenessProbe:
+#          initialDelaySeconds: 180
+#          httpGet:
+#            path: /actuator/health
+#            port: 8080
+#        readinessProbe:
+#          httpGet:
+#            path: /
+#            port: 8080
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: config
+          mountPath: "/etc/app/"
+          readOnly: true
+      volumes:
+        # You set volumes at the Pod level, then mount them into containers inside that Pod
+        - name: config
+          configMap:
+            # Provide the name of the ConfigMap you want to mount.
+            name: application-config-invoicing
+            # An array of keys from the ConfigMap to create as files
+            items:
+            - key: "application.properties"
+              path: "application.properties"
+status: {}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: shipping
+    version: "1.0"
+  name: shipping
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shipping
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      annotations:
+        sidecar.istio.io/inject: "true"
+      labels:
+        app: shipping
+    spec:
+      containers:
+      - name: shipping
+        image: quay.io/bpandey/istio-demo:microservice-istio-shipping
+        imagePullPolicy: Always        
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: config
+          mountPath: "/etc/app/"
+          readOnly: true
+      volumes:
+        # You set volumes at the Pod level, then mount them into containers inside that Pod
+        - name: config
+          configMap:
+            # Provide the name of the ConfigMap you want to mount.
+            name: application-config-shipping
+            # An array of keys from the ConfigMap to create as files
+            items:
+            - key: "application.properties"
+              path: "application.properties"
+status: {}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: order    
+    version: "1.0"
+  name: order
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "true"
+      creationTimestamp: null
+      labels:
+        app: order
+    spec:
+      containers:
+      - name: order
+        image: quay.io/bpandey/istio-demo:microservice-istio-order
+        imagePullPolicy: Always        
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: config
+          mountPath: "/etc/app/"
+          readOnly: true
+      volumes:
+        # You set volumes at the Pod level, then mount them into containers inside that Pod
+        - name: config
+          configMap:
+            # Provide the name of the ConfigMap you want to mount.
+            name: application-config-order
+            # An array of keys from the ConfigMap to create as files
+            items:
+            - key: "application.properties"
+              path: "application.properties"
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: invoicing
+  name: invoicing
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+    name: http    
+  selector:
+    app: invoicing
+  type: ClusterIP
+status:
+  loadBalancer: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: shipping
+  name: shipping
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+    name: http    
+  selector:
+    app: shipping
+  type: ClusterIP
+status:
+  loadBalancer: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: order
+    visualize: "true"
+  name: order
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+    name: http    
+  selector:
+    app: order
+  type: ClusterIP
+status:
+  loadBalancer: {}
+
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: shipping
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - microservice-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /shipping
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        port:
+          number: 80
+        host: shipping.istioexample.svc.cluster.local
+
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: invoicing
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - microservice-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /invoicing
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        port:
+          number: 80
+        host: invoicing.istioexample.svc.cluster.local
+
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: order
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - microservice-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /order
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        port:
+          number: 80
+        host: order.istioexample.svc.cluster.local
